@@ -151,3 +151,38 @@ async def start_monitoring(background_tasks: BackgroundTasks):
     return {"status": "Monitoring started"}
 
 # Continous comment retrival END ====================================================================================================================================
+
+# Endpoint to triger lambda function START ==========================================================================================================================
+lambda_client = boto3.client('lambda', region_name='us-east-1',
+                              aws_access_key_id='AWS_ACCESS_KEY_ID',
+                              aws_secret_access_key='AWS_SECRET_KEY_ID',)
+@app.get("/trigger-lambda")
+async def trigger_lambda_function():
+    # Define the payload
+    payload = {
+        "key1": "request.key1",
+        "key2": "request.key2"
+    }
+
+    # Convert payload to JSON
+    json_payload = json.dumps(payload)
+
+    # Invoke the Lambda functionRuntime.ImportModuleError\", \"requestId\": \"ce45cc90-ed94-406a-b7ef-70e0b9cee5ac\", \"stackTrace\": []}"}
+    try:
+        response = lambda_client.invoke(
+            FunctionName='LAMBDA_FUNCTION_NAME',
+            InvocationType='RequestResponse',  # 'Event' for asynchronous, 'RequestResponse' for synchronous
+            Payload=json_payload
+        )
+
+        # Extract the response payload
+        response_payload = response['Payload'].read().decode('utf-8')
+
+        # Return the Lambda function's response
+        return {
+            "response": response_payload
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error invoking Lambda: {str(e)}")
+
+# Endpoint to triger lambda function END ============================================================================================================================
