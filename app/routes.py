@@ -4,10 +4,11 @@ from .models import Comment
 from googleapiclient.discovery import Resource
 from typing import List
 import csv
-import os
 
 router = APIRouter()
 
+
+# API for getting comments and store them in the CSV file START =================================================================
 @router.get("/comments/{video_id}")
 async def get_comments(video_id: str, youtube: Resource = Depends(get_youtube_api)):
     # Make the request to the YouTube API to fetch comments
@@ -45,3 +46,5 @@ async def get_comments(video_id: str, youtube: Resource = Depends(get_youtube_ap
     return {
         "message": f"Comments for video ID '{video_id}' have been saved to {csv_file_path}"
     }
+
+# API for getting comments and store them in the CSV file NED ===================================================================

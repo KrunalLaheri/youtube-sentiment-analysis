@@ -1,11 +1,16 @@
-from fastapi import FastAPI
 from .routes import router
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
-from fastapi import FastAPI, Request, HTTPException, status, APIRouter
+from fastapi import FastAPI, Request, HTTPException, status, APIRouter, BackgroundTasks
 from .dependencies import get_youtube_api, get_youtube_api_key
 import httpx
+import boto3
+import json
+import googleapiclient.discovery
+import time
+
+# Project configuration START =================================================================================================
 app = FastAPI()
 
 # Mount the static files directory
@@ -13,6 +18,15 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Set up Jinja2 templates
 templates = Jinja2Templates(directory="templates")
+
+kinesis_client = boto3.client('kinesis', 
+                              region_name='us-east-1',
+                              aws_access_key_id='AWS_ACCESS_KEY',
+                              aws_secret_access_key='AWS_SECRET_KEY',
+                            )
+
+# Project configuration END ===================================================================================================
+
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
@@ -65,7 +79,75 @@ async def fetch_live_comments(video_id: str):
                 "time": message['snippet']['publishedAt']
             }
             live_comments.append(comment)
+            # print("======================================================================comment",comment)
+            # print("================================================================type(comment)",type(comment))
+            live_comments_json = json.dumps(comment)
+
+            try:
+                response = kinesis_client.describe_stream(StreamName='YoutubeCommentStream')
+                print("Credentials and permissions are correct.")
+            except Exception as e:
+                print(f"Error: {e}")
+
+            response = kinesis_client.put_record(
+                StreamName='YoutubeCommentStream',  # Replace with your Kinesis Data Stream name
+                Data=live_comments_json,
+                PartitionKey='First use'  # Use a suitable partition key for your data
+            )
+
 
         return live_comments
 
 # http://1270.0.01:8000/fetch_live_comments?video_id=YOUR_VIDEO_ID
+
+# Continous comment retrival START ==================================================================================================================================
+
+# Your live video ID here
+live_video_id = 'LIVE_VIDEO_ID'
+
+# Build the YouTube API client
+youtube = googleapiclient.discovery.build('youtube', 'v3', developerKey=API_KEY)
+
+# Function to monitor live chat comments
+def monitor_live_chat():
+    # Get live chat ID
+    response = youtube.videos().list(
+        part='liveStreamingDetails',
+        id=live_video_id
+    ).execute()
+
+    live_chat_id = response['items'][0]['liveStreamingDetails']['activeLiveChatId']
+
+    # Variable to store next page token
+    next_page_token = None
+
+    # Continuously monitor new comments
+    while True:
+        # Retrieve live chat messages
+        response = youtube.liveChatMessages().list(
+            liveChatId=live_chat_id,
+            part='snippet,authorDetails',
+            pageToken=next_page_token
+        ).execute()
+
+        # Process each message
+        for message in response['items']:
+            author = message['authorDetails']['displayName']
+            text = message['snippet']['displayMessage']
+            print(f"{author}: {text}")
+
+        # Update the next page token
+        next_page_token = response.get('nextPageToken')
+        print("================================================================>next_page_token: ",next_page_token)
+
+        # Wait for a few seconds before polling again
+        time.sleep(5)
+
+# Endpoint to start monitoring live chat
+@app.get("/start-monitoring")
+async def start_monitoring(background_tasks: BackgroundTasks):
+    # Start monitoring live chat in a background task
+    background_tasks.add_task(monitor_live_chat)
+    return {"status": "Monitoring started"}
+
+# Continous comment retrival END ====================================================================================================================================
