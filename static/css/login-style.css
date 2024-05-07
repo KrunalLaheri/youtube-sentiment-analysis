@@ -1,0 +1,18 @@
+/* CSS file: styles.css */
+body, html {
+    height: 100%;
+    margin: 0;
+    background-color: rgb(43 48 53);
+    /* background-color: rgba(var(--bs-tertiary-bg-rgb),var(--bs-bg-opacity))!important */
+}
+
+.loginDiv {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+}
+
+.card {
+    width: 500px; /* Adjust the width of the card as needed */
+}

@@ -7,4 +7,8 @@ def initialize_youtube_api(api_key: str):
 
 def get_youtube_api():
     # api_key = os.getenv('YOUTUBE_API_KEY')
-    return initialize_youtube_api("################################")
+    return initialize_youtube_api("YOUTUBE_API_KEY")
+
+def get_youtube_api_key():
+    return "YOUTUBE_API_KEY"
+
